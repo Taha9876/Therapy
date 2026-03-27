@@ -20,7 +20,7 @@ const DoctorDashboard = () => {
   const { data: appointments = [] } = useQuery({
     queryKey: ["doctor-appointments", doctor?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("appointments").select("*, patients:patient_id(profiles:user_id(full_name))").eq("doctor_id", doctor!.id);
+      const { data } = await supabase.from("appointments_with_names").select("*").eq("doctor_id", doctor!.id);
       return data || [];
     },
     enabled: !!doctor,
@@ -29,7 +29,7 @@ const DoctorDashboard = () => {
   const { data: patients = [] } = useQuery({
     queryKey: ["doctor-patients", doctor?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("patients").select("*, profiles:user_id(full_name)").eq("assigned_doctor_id", doctor!.id);
+      const { data } = await supabase.from("patients_with_profiles").select("*").eq("assigned_doctor_id", doctor!.id);
       return data || [];
     },
     enabled: !!doctor,

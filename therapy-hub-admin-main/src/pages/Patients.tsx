@@ -24,9 +24,10 @@ const Patients = () => {
   const { data: patients = [] } = useQuery({
     queryKey: ["admin-patients-list"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("patients")
-        .select("*, profiles:user_id(full_name, user_id), doctors:assigned_doctor_id(profiles:user_id(full_name))");
+      const { data, error } = await supabase
+        .from("patients_with_profiles")
+        .select("*");
+      if (error) console.error("Error fetching patients:", error);
       return data || [];
     },
   });
@@ -54,7 +55,7 @@ const Patients = () => {
   });
 
   const filtered = patients.filter((p: any) => {
-    const name = (p.profiles as any)?.full_name || "";
+    const name = p.full_name || "";
     return name.toLowerCase().includes(search.toLowerCase()) || p.goal?.toLowerCase().includes(search.toLowerCase());
   });
 
@@ -95,7 +96,7 @@ const Patients = () => {
               const assessment = getLatestAssessment(p.id);
               return (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{(p.profiles as any)?.full_name || "—"}</TableCell>
+                  <TableCell className="font-medium">{p.full_name || "—"}</TableCell>
                   <TableCell>{p.age || "—"}</TableCell>
                   <TableCell>{p.gender || "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{p.goal || "—"}</TableCell>
@@ -124,7 +125,7 @@ const Patients = () => {
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{(selected?.profiles as any)?.full_name}</DialogTitle>
+            <DialogTitle>{selected?.full_name}</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-4">

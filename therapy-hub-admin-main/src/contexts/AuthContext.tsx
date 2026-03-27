@@ -26,100 +26,129 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
-    return (data?.role as AppRole) || null;
+  const fetchRole = async (currentUser: User): Promise<AppRole | null> => {
+    // Method 1: Try querying user_roles table via PostgREST
+    try {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+      if (!error && data?.role) {
+        console.log("Fetched role from DB:", data.role);
+        return data.role as AppRole;
+      }
+      if (error) console.warn("DB role fetch failed:", error.message);
+    } catch (err) {
+      console.warn("DB role fetch exception:", err);
+    }
+
+    // Method 2: Try RPC function
+    try {
+      const { data, error } = await supabase.rpc("get_user_role", {
+        _user_id: currentUser.id,
+      });
+      if (!error && data) {
+        console.log("Fetched role from RPC:", data);
+        return data as AppRole;
+      }
+    } catch (err) {
+      console.warn("RPC role fetch failed:", err);
+    }
+
+    // Method 3: Fall back to user metadata (set during signup)
+    const metaRole = currentUser.user_metadata?.role;
+    if (metaRole && ["admin", "doctor", "patient"].includes(metaRole)) {
+      console.log("Using role from metadata:", metaRole);
+      return metaRole as AppRole;
+    }
+
+    console.warn("Could not determine role, defaulting to null");
+    return null;
   };
 
   useEffect(() => {
     let mounted = true;
 
-    // Safety timeout: guarantee loading resolves even if Supabase fails
-    const timeout = setTimeout(() => {
-      if (mounted) {
-        console.warn("Auth initialization timed out, proceeding without auth");
-        setLoading(false);
-      }
-    }, 5000);
-
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        if (mounted && session?.user) {
           setUser(session.user);
-          try {
-            const r = await fetchRole(session.user.id);
-            if (mounted) setRole(r);
-          } catch (roleError) {
-            console.error("Failed to fetch role:", roleError);
-          }
+          const r = await fetchRole(session.user);
+          if (mounted) setRole(r);
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
       } finally {
-        if (mounted) {
-          setLoading(false);
-          clearTimeout(timeout);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
+    initAuth();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
-        try {
-          const r = await fetchRole(session.user.id);
-          if (mounted) setRole(r);
-        } catch (error) {
-          console.error("Role fetch error:", error);
-        }
+        const r = await fetchRole(session.user);
+        if (mounted) setRole(r);
       } else {
         setUser(null);
         setRole(null);
       }
     });
 
-    initAuth();
-
     return () => {
       mounted = false;
-      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
-    return { error: null };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: error.message };
+      if (data.user) {
+        setUser(data.user);
+        const r = await fetchRole(data.user);
+        setRole(r);
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || "Login failed" };
+    }
   };
 
   const signUp = async (email: string, password: string, metadata: Record<string, string>) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: metadata },
-    });
-    if (error) return { error: error.message };
-    return { error: null };
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: metadata },
+      });
+      if (error) return { error: error.message };
+      if (data.user && data.session) {
+        setUser(data.user);
+        const r = await fetchRole(data.user);
+        setRole(r);
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || "Signup failed" };
+    }
   };
 
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
     } catch (error) {
-      console.error("Error signing out from Supabase:", error);
+      console.error("Error signing out:", error);
     } finally {
       setUser(null);
       setRole(null);
-      // Force clear all local and session storage to guarantee no stuck auth states
       localStorage.clear();
       sessionStorage.clear();
-      // Reload the window to ensure a completely clean state for the landing page
       window.location.href = "/";
     }
   };

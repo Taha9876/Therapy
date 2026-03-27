@@ -15,9 +15,7 @@ const Dashboard = () => {
   const { data: patients = [] } = useQuery({
     queryKey: ["admin-patients"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("patients")
-        .select("*, profiles:user_id(full_name), doctors:assigned_doctor_id(id, profiles:user_id(full_name))");
+      const { data } = await supabase.from("patients_with_profiles").select("*");
       return data || [];
     },
   });
@@ -25,7 +23,7 @@ const Dashboard = () => {
   const { data: doctors = [] } = useQuery({
     queryKey: ["admin-doctors"],
     queryFn: async () => {
-      const { data } = await supabase.from("doctors").select("*, profiles:user_id(full_name)");
+      const { data } = await supabase.from("doctors_with_profiles").select("*");
       return data || [];
     },
   });
@@ -42,8 +40,8 @@ const Dashboard = () => {
     queryKey: ["admin-appointments"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("appointments")
-        .select("*, patients:patient_id(profiles:user_id(full_name)), doctor:doctor_id(profiles:user_id(full_name))")
+        .from("appointments_with_names")
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(10);
       return data || [];
@@ -126,8 +124,8 @@ const Dashboard = () => {
               <TableBody>
                 {appointments.slice(0, 5).map((a: any) => (
                   <TableRow key={a.id}>
-                    <TableCell className="font-medium">{(a.patients as any)?.profiles?.full_name || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{(a.doctor as any)?.profiles?.full_name || "—"}</TableCell>
+                    <TableCell className="font-medium">{a.patient_name || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{a.doctor_name || "—"}</TableCell>
                     <TableCell><StatusBadge status={a.status} /></TableCell>
                   </TableRow>
                 ))}

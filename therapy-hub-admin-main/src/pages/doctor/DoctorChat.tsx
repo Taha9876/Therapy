@@ -26,7 +26,7 @@ const DoctorChat = () => {
   const { data: patients = [] } = useQuery({
     queryKey: ["doctor-chat-patients", doctor?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("patients").select("*, profiles:user_id(full_name)").eq("assigned_doctor_id", doctor!.id);
+      const { data } = await supabase.from("patients_with_profiles").select("*").eq("assigned_doctor_id", doctor!.id);
       return data || [];
     },
     enabled: !!doctor,
@@ -75,7 +75,7 @@ const DoctorChat = () => {
               onClick={() => setSelectedPatientId(p.id)}
               className={cn("w-full text-left rounded-lg px-3 py-2 text-sm transition-colors", selectedPatientId === p.id ? "bg-accent text-accent-foreground" : "hover:bg-muted")}
             >
-              {(p.profiles as any)?.full_name || "Patient"}
+              {p.full_name || "Patient"}
             </button>
           ))}
           {patients.length === 0 && <p className="text-xs text-muted-foreground">No patients assigned</p>}

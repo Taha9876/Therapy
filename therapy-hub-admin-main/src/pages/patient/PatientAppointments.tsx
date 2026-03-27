@@ -34,8 +34,8 @@ const PatientAppointments = () => {
     queryKey: ["patient-appointments", patient?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from("appointments")
-        .select("*, doctor:doctor_id(profiles:user_id(full_name))")
+        .from("appointments_with_names")
+        .select("*")
         .eq("patient_id", patient!.id)
         .order("appointment_date", { ascending: false });
       return data || [];
@@ -46,7 +46,7 @@ const PatientAppointments = () => {
   const { data: doctors = [] } = useQuery({
     queryKey: ["available-doctors"],
     queryFn: async () => {
-      const { data } = await supabase.from("doctors").select("*, profiles:user_id(full_name)").eq("status", "Active");
+      const { data } = await supabase.from("doctors_with_profiles").select("*").eq("status", "Active");
       return data || [];
     },
   });
@@ -54,11 +54,14 @@ const PatientAppointments = () => {
   const bookMutation = useMutation({
     mutationFn: async () => {
       if (!patient) return;
+      // Create the appointment
       await supabase.from("appointments").insert({
         patient_id: patient.id,
         doctor_id: doctorId,
         appointment_date: new Date(date).toISOString(),
       });
+      // Assign this doctor to the patient (enables chat + doctor's patient list)
+      await supabase.from("patients").update({ assigned_doctor_id: doctorId }).eq("id", patient.id);
     },
     onSuccess: () => {
       toast({ title: "Appointment booked!" });
@@ -66,6 +69,7 @@ const PatientAppointments = () => {
       setDoctorId("");
       setDate("");
       qc.invalidateQueries({ queryKey: ["patient-appointments"] });
+      qc.invalidateQueries({ queryKey: ["my-patient"] });
     },
   });
 
@@ -86,7 +90,7 @@ const PatientAppointments = () => {
                   <SelectTrigger><SelectValue placeholder="Select doctor" /></SelectTrigger>
                   <SelectContent>
                     {doctors.map((d: any) => (
-                      <SelectItem key={d.id} value={d.id}>{(d.profiles as any)?.full_name} — {d.specialization}</SelectItem>
+                      <SelectItem key={d.id} value={d.id}>{d.full_name} — {d.specialization}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -114,7 +118,7 @@ const PatientAppointments = () => {
               <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">No appointments yet</TableCell></TableRow>
             ) : appointments.map((a: any) => (
               <TableRow key={a.id}>
-                <TableCell className="font-medium">{(a.doctor as any)?.profiles?.full_name || "—"}</TableCell>
+                <TableCell className="font-medium">{a.doctor_name || "—"}</TableCell>
                 <TableCell>{new Date(a.appointment_date).toLocaleString()}</TableCell>
                 <TableCell><StatusBadge status={a.status} /></TableCell>
               </TableRow>

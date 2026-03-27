@@ -20,7 +20,7 @@ const DoctorPatients = () => {
   const { data: patients = [] } = useQuery({
     queryKey: ["doctor-patients", doctor?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("patients").select("*, profiles:user_id(full_name)").eq("assigned_doctor_id", doctor!.id);
+      const { data } = await supabase.from("patients_with_profiles").select("*").eq("assigned_doctor_id", doctor!.id);
       return data || [];
     },
     enabled: !!doctor,
@@ -48,7 +48,7 @@ const DoctorPatients = () => {
               <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No patients assigned yet</TableCell></TableRow>
             ) : patients.map((p: any) => (
               <TableRow key={p.id}>
-                <TableCell className="font-medium">{(p.profiles as any)?.full_name || "—"}</TableCell>
+                <TableCell className="font-medium">{p.full_name || "—"}</TableCell>
                 <TableCell>{p.age || "—"}</TableCell>
                 <TableCell>{p.gender || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{p.goal || "—"}</TableCell>

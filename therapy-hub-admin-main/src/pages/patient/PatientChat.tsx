@@ -16,14 +16,24 @@ const PatientChat = () => {
   const { data: patient } = useQuery({
     queryKey: ["my-patient", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("patients").select("*, doctors:assigned_doctor_id(user_id, profiles:user_id(full_name))").eq("user_id", user!.id).maybeSingle();
+      const { data } = await supabase.from("patients_with_profiles").select("*").eq("user_id", user!.id).maybeSingle();
       return data;
     },
     enabled: !!user,
   });
 
-  const doctorUserId = (patient?.doctors as any)?.user_id;
-  const doctorName = (patient?.doctors as any)?.profiles?.full_name;
+  // Get doctor's user_id for chat
+  const { data: doctor } = useQuery({
+    queryKey: ["patient-doctor", patient?.assigned_doctor_id],
+    queryFn: async () => {
+      const { data } = await supabase.from("doctors_with_profiles").select("*").eq("id", patient!.assigned_doctor_id!).maybeSingle();
+      return data;
+    },
+    enabled: !!patient?.assigned_doctor_id,
+  });
+
+  const doctorUserId = doctor?.user_id;
+  const doctorName = doctor?.full_name;
 
   const { data: messages = [] } = useQuery({
     queryKey: ["patient-chat", user?.id, doctorUserId],

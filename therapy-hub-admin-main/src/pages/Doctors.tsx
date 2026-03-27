@@ -19,9 +19,10 @@ const Doctors = () => {
   const { data: doctors = [] } = useQuery({
     queryKey: ["admin-doctors-list"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("doctors")
-        .select("*, profiles:user_id(full_name)");
+      const { data, error } = await supabase
+        .from("doctors_with_profiles")
+        .select("*");
+      if (error) console.error("Error fetching doctors:", error);
       return data || [];
     },
   });
@@ -35,7 +36,7 @@ const Doctors = () => {
   });
 
   const filtered = doctors.filter((d: any) => {
-    const name = (d.profiles as any)?.full_name || "";
+    const name = d.full_name || "";
     return name.toLowerCase().includes(search.toLowerCase()) || d.specialization?.toLowerCase().includes(search.toLowerCase());
   });
 
@@ -69,7 +70,7 @@ const Doctors = () => {
               <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No doctors found</TableCell></TableRow>
             ) : filtered.map((d: any) => (
               <TableRow key={d.id}>
-                <TableCell className="font-medium">{(d.profiles as any)?.full_name || "—"}</TableCell>
+                <TableCell className="font-medium">{d.full_name || "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{d.specialization || "—"}</TableCell>
                 <TableCell className="text-sm">{d.phone || "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{d.availability || "—"}</TableCell>

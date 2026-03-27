@@ -26,8 +26,8 @@ const DoctorAppointments = () => {
     queryKey: ["doctor-appointments", doctor?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from("appointments")
-        .select("*, patients:patient_id(profiles:user_id(full_name))")
+        .from("appointments_with_names")
+        .select("*")
         .eq("doctor_id", doctor!.id)
         .order("appointment_date", { ascending: false });
       return data || [];
@@ -62,7 +62,7 @@ const DoctorAppointments = () => {
               <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No appointments</TableCell></TableRow>
             ) : appointments.map((a: any) => (
               <TableRow key={a.id}>
-                <TableCell className="font-medium">{(a.patients as any)?.profiles?.full_name || "—"}</TableCell>
+                <TableCell className="font-medium">{a.patient_name || "—"}</TableCell>
                 <TableCell>{new Date(a.appointment_date).toLocaleDateString()}</TableCell>
                 <TableCell><StatusBadge status={a.status} /></TableCell>
                 <TableCell className="text-right">

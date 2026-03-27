@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Brain,
   Stethoscope,
@@ -40,10 +41,11 @@ const LandingPage = () => {
   const [gender, setGender] = useState("");
   const [goal, setGoal] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { user, role, signIn, signUp } = useAuth();
+  const { user, role, signIn, signUp, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const authRef = useRef<HTMLDivElement>(null);
+
   // Intersection Observer for scroll-triggered animations
   const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -69,12 +71,18 @@ const LandingPage = () => {
     setGender("");
     setGoal("");
   };
-  const handleDashboardRedirect = (targetRole: RoleTab) => {
+  const handleDashboardRedirect = async (targetRole: RoleTab) => {
     if (user) {
-      if (role === "admin") navigate("/dashboard");
-      else if (role === "doctor") navigate("/doctor/dashboard");
-      else navigate("/patient/dashboard");
-      return;
+      // If user's role matches the target, go to their dashboard
+      if (role === targetRole) {
+        if (role === "admin") navigate("/dashboard");
+        else if (role === "doctor") navigate("/doctor/dashboard");
+        else navigate("/patient/dashboard");
+        return;
+      }
+      // If role doesn't match, sign out and show login for target role
+      await supabase.auth.signOut();
+      // Don't reload - just clear state and show auth
     }
     openAuth(targetRole);
   };
@@ -87,6 +95,12 @@ const LandingPage = () => {
       authRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 100);
   };
+  const redirectToDashboard = (userRole: string) => {
+    if (userRole === "admin") navigate("/dashboard", { replace: true });
+    else if (userRole === "doctor") navigate("/doctor/dashboard", { replace: true });
+    else navigate("/patient/dashboard", { replace: true });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -95,7 +109,8 @@ const LandingPage = () => {
       if (error) {
         toast({ title: "Login failed", description: error, variant: "destructive" });
       } else {
-        navigate("/");
+        // Redirect based on the activeRole tab they logged in from
+        redirectToDashboard(activeRole);
       }
     } else {
       if (activeRole === "admin") {
@@ -118,9 +133,8 @@ const LandingPage = () => {
       if (error) {
         toast({ title: "Signup failed", description: error, variant: "destructive" });
       } else {
-        toast({ title: "Account created!", description: "You can now sign in." });
-        setMode("login");
-        resetFields();
+        toast({ title: "Account created! Redirecting..." });
+        redirectToDashboard(activeRole);
       }
     }
     setSubmitting(false);

@@ -314,7 +314,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      doctors_with_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          specialization: string
+          phone: string | null
+          availability: string | null
+          status: string
+          created_at: string
+          updated_at: string
+          full_name: string | null
+        }
+        Relationships: []
+      }
+      patients_with_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          age: number | null
+          gender: string | null
+          goal: string | null
+          status: string
+          assigned_doctor_id: string | null
+          created_at: string
+          updated_at: string
+          full_name: string | null
+          doctor_name: string | null
+        }
+        Relationships: []
+      }
+      appointments_with_names: {
+        Row: {
+          id: string
+          patient_id: string
+          doctor_id: string
+          appointment_date: string
+          status: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+          patient_name: string | null
+          doctor_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
