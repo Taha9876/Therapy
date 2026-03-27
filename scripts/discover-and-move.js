@@ -1,24 +1,48 @@
 import fs from 'fs';
 import path from 'path';
 
-const sourceDir = process.cwd() + '/therapy-hub-admin-main';
-const targetDir = process.cwd();
+// Find where the script is running from
+console.log('[v0] Current working directory:', process.cwd());
+console.log('[v0] Script location:', import.meta.url);
 
-console.log('[v0] Starting reorganization...');
-console.log('[v0] Source:', sourceDir);
-console.log('[v0] Target:', targetDir);
+// List contents of current directory to find the folder
+const currentDir = process.cwd();
+const items = fs.readdirSync(currentDir);
+console.log('[v0] Items in current directory:');
+items.slice(0, 20).forEach(item => console.log('  -', item));
 
-if (!fs.existsSync(sourceDir)) {
-  console.log('[v0] Error: Source directory not found at', sourceDir);
+// Try to find therapy-hub-admin-main
+const possiblePaths = [
+  path.join(currentDir, 'therapy-hub-admin-main'),
+  path.join(currentDir, '..', 'therapy-hub-admin-main'),
+  '/vercel/share/v0-project/therapy-hub-admin-main'
+];
+
+let sourceDir = null;
+for (const possiblePath of possiblePaths) {
+  console.log('[v0] Checking path:', possiblePath);
+  if (fs.existsSync(possiblePath)) {
+    sourceDir = possiblePath;
+    console.log('[v0] Found source directory at:', sourceDir);
+    break;
+  }
+}
+
+if (!sourceDir) {
+  console.log('[v0] ERROR: Could not find therapy-hub-admin-main in any expected location');
   process.exit(1);
 }
 
+const targetDir = path.dirname(sourceDir);
+console.log('[v0] Target directory:', targetDir);
+
 // Get all files and folders in the source directory
-const items = fs.readdirSync(sourceDir);
-console.log('[v0] Items to move:', items);
+const sourceItems = fs.readdirSync(sourceDir);
+console.log('[v0] Items to move:', sourceItems.length, 'items');
 
 // Move each item to the root
-items.forEach(item => {
+let movedCount = 0;
+sourceItems.forEach(item => {
   const sourcePath = path.join(sourceDir, item);
   const targetPath = path.join(targetDir, item);
   
@@ -37,6 +61,7 @@ items.forEach(item => {
       fs.copyFileSync(sourcePath, targetPath);
       console.log('[v0] Moved file:', item);
     }
+    movedCount++;
   } catch (error) {
     console.log('[v0] Error moving', item, ':', error.message);
   }
@@ -50,7 +75,7 @@ try {
   console.log('[v0] Error removing source directory:', error.message);
 }
 
-console.log('[v0] Reorganization complete!');
+console.log('[v0] Reorganization complete! Moved', movedCount, 'items');
 
 function copyDirRecursive(src, dest) {
   if (!fs.existsSync(dest)) {
